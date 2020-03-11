@@ -16,8 +16,8 @@
 
 
 // Définition des adresses logiques des esclaves I2C.
-#define I2C_SLAVE_LED_ADDRESS  1
-#define I2C_SLAVE_ENGINE_ADDRESS  2
+#define I2C_SLAVE_DETECTION_ADDRESS  1
+#define I2C_SLAVE_DEPLACEMENT_ADDRESS  2
 
 
 

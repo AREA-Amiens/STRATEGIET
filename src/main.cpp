@@ -4,11 +4,11 @@
 
 bool detection=true;
 
-int intdeplakment[18][3];
+int intdeplakment[18][3],k=0;
 
 float deplakment[18][3];
 
-byte Trame[4],envoye=0;
+byte Trame[4],envoye=0,com=0;
 
 // ---------------------------------------------------------------------------
 // Un programme Arduino doit impérativement contenir la fonction "setup"
@@ -100,18 +100,6 @@ void setup()
 
   delay(10000);
 
-/*
-  Wire.beginTransmission(I2C_SLAVE_ENGINE_ADDRESS);
-
-
-  for (int i=0; i<4; i++){
-      Wire.write(i);
-    }
-    while(1){
-      delay(1);
-    }
-  Wire.endTransmission();
-  */
 
 }
 
@@ -151,12 +139,18 @@ void loop()
 
   //Serial.println(".");
   //while (envoye==0){
+  Wire.requestFrom(I2C_SLAVE_DEPLACEMENT_ADDRESS,1);
+  com=Wire.read();//lecture si le robot a fini de se déplacer
+  if (com==0){ //si il a fini...
+    if(k==0)readRegisterAndSendValue();
     envoye=1;
-    readRegisterAndSendValue();
+    k++;
+    readRegisterAndSendValue();//envoi prochaine position
+
+  }
+
     delay(1000);
 //  }
-
-  //k++;
 
 
 }
@@ -166,7 +160,6 @@ void readRegisterAndSendValue() {
 
   int q=0;
 
-  for (int k=0;k<17;k++){
     // Envoie de la valeur à l'esclave I2C.
     // Principe et description :
     // 1 : Commencez une transmission vers la carte esclave I2C avec l'adresse donnée.
@@ -195,7 +188,7 @@ void readRegisterAndSendValue() {
     Trame[2]=deplakment[k][2];
     Trame[3]=deplakment[k][3];
 
-    Wire.beginTransmission(I2C_SLAVE_ENGINE_ADDRESS);
+    Wire.beginTransmission(I2C_SLAVE_DEPLACEMENT_ADDRESS);
     for (int i=0; i<4; i++){
         Wire.write(Trame[i]);
 
@@ -205,7 +198,6 @@ void readRegisterAndSendValue() {
         Serial.println(q);
       }
 
-  }
   Wire.endTransmission();
 
 }
