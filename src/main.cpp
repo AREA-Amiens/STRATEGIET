@@ -95,6 +95,7 @@ void setup()
   // Initialise la library Wire et se connecte au bus I2C en tant que maître
   Wire.begin();
 
+  // Test si la Teensy fonctionne en allumant sa LED
   pinMode(13,OUTPUT);
   digitalWrite(13,HIGH);
 
@@ -136,13 +137,13 @@ void setup()
 void loop()
 {
 
-
-  //Serial.println(".");
-  //while (envoye==0){
+  //lecture si le robot a fini de se déplacer
   Wire.requestFrom(I2C_SLAVE_DEPLACEMENT_ADDRESS,1);
-  com=Wire.read();//lecture si le robot a fini de se déplacer
+  com=Wire.read();
+  Serial.println(com);
+
   if (com==0){ //si il a fini...
-    if(k==0)readRegisterAndSendValue();
+    if(k==0)readRegisterAndSendValue();//si on est au tout début--> position initiale
     envoye=1;
     k++;
     readRegisterAndSendValue();//envoi prochaine position
@@ -176,8 +177,7 @@ void readRegisterAndSendValue() {
     intdeplakment[k][2]=deplakment[k][2];
     intdeplakment[k][3]=deplakment[k][3];
 
-    //Serial.print("TURN");
-    //Serial.println(intdeplakment[k][3]);
+
     //Chargement des octets à partir du tableau de déplacement pour une transmission du composant maître vers un composant esclave
     // Rq : la trame 0 est une trame rassemblant les bits restants pour x y et turn
 
@@ -192,6 +192,7 @@ void readRegisterAndSendValue() {
     for (int i=0; i<4; i++){
         Wire.write(Trame[i]);
 
+        Serial.print("Trame");
         Serial.println(Trame[i]);
         q++;
         Serial.print("q");
