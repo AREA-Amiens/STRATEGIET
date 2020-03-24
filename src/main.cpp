@@ -104,31 +104,6 @@ void setup()
 
 }
 
-// Création d'une Fonction dont l'objectif est de :
-//  - lire la valeur analogique du potentiomètre dont l'adresse est spécifiée via le
-//  paramètre *potentiometerPin*
-//
-//  - la mettre à l'échelle, car dans cet exemple, on souhaite avoir une plage de
-// valeurs entre 0 et 255
-//
-//  - tester si cette valeur est différente de la précédente; ce qui est possible
-// avec le paramètre *previousValue* (qui est passé par référence)
-//
-//  - si et seulement si c'est le cas, on l'envoie sur le bus I2C, pour l'esclave
-// dont l'adresse est spécifiée via *slaveAddress*
-//
-// La subtilité de cette méthode est le passage par adresse (plutôt que par valeur)
-// du paramètre previousValue, qui permet de lire/modifier la variable en dehors
-// de cette méthode. // Cela est indispensable pour pouvoir sauvegarder la valeur
-// lue via le potentiomètre et pouvoir la comparer avec les valeurs suivantes.
-
-/*
- * Creation de la fonction : readRegisterAndSendValue
- *
- */
-
-
-
 
 // ---------------------------------------------------------------------------
 // Le programme principal s’exécute par une boucle infinie appelée Loop ()
@@ -147,7 +122,7 @@ void loop()
     envoye=1;
     k++;
     readRegisterAndSendValue();//envoi prochaine position
-
+    com=1; //Pour ne pas retourner dans cette condition si la loop revient trop rapidement
   }
 
     delay(1000);
