@@ -1,14 +1,56 @@
 #include <STRATEGIET.h>
+#include <logo-area.h>
+
+
+#include <U8g2lib.h>
+
+#ifdef U8X8_HAVE_HW_SPI
+#include <SPI.h>
+#endif
+#ifdef U8X8_HAVE_HW_I2C
+#include <Wire.h>
+#endif
+
+U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 11, /* CS=*/ 12, /* reset=*/ 8);
 
 
 
-bool detection=true;
+void drawLogo(void)
+{
+    u8g2.setFontMode(1);	// Transparent
 
-int intdeplakment[18][3],k=0;
+
+    u8g2.setFontDirection(0);
+    u8g2.setFont(u8g2_font_inb16_mf);
+    u8g2.drawStr(0, 22, "U");
+
+    u8g2.setFontDirection(1);
+
+    u8g2.drawStr(14,8,"4");
+
+    u8g2.setFontDirection(0);
+
+    u8g2.drawStr(36,22,"g");
+    u8g2.drawStr(48,22,"\xb2");
+
+    u8g2.drawHLine(2, 25, 34);
+    u8g2.drawHLine(3, 26, 34);
+    u8g2.drawVLine(32, 22, 12);
+    u8g2.drawVLine(33, 23, 12);
+
+
+
+}
+
+
+
+bool detection=true,verif=false;
+
+int intdeplakment[18][3],k=0,x=0;
 
 float deplakment[18][3];
 
-byte Trame[4],envoye=0,com=0;
+byte Trame[6],envoye=0,com=0;
 
 // ---------------------------------------------------------------------------
 // Un programme Arduino doit impérativement contenir la fonction "setup"
@@ -17,6 +59,11 @@ byte Trame[4],envoye=0,com=0;
 // ---------------------------------------------------------------------------
 void setup()
 {
+  pinMode(9, OUTPUT);
+  digitalWrite(9, 0);	// default output in I2C mode for the SSD1306 test shield: set the i2c adr to 0
+
+  u8g2.begin();
+
   deplakment[0][1]=1000;//x
   deplakment[0][2]=1000;//y
   deplakment[0][3]=0;//angle initial
@@ -99,9 +146,28 @@ void setup()
   pinMode(13,OUTPUT);
   digitalWrite(13,HIGH);
 
-  delay(10000);
+  u8g2.clearBuffer();         // clear the internal memory
+  u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
+  u8g2.setBitmapMode(0);
+  u8g2.drawStr(0,34,"TEAM");
+  u8g2.drawXBM( 33, 0, logoAREA_width, logoAREA_height, logoAREA);
+  u8g2.drawStr(95,34,"AREA");
+  //  u8g2.blink(); //clignoter le msg
+  u8g2.sendBuffer();          // transfer internal memory to the display
+  delay(3000);
+
+  while( x <=138){ //défiler logo
+    u8g2.clearBuffer();         // clear the internal memory
+    u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
+    u8g2.setBitmapMode(0);
+    u8g2.drawXBM( x, 0, logoAREA_width, logoAREA_height, logoAREA);
+    u8g2.sendBuffer();
+    x+=10; // défiler plus vite ( penser à mettre <=128+10 pour être sur que le logo disparait totalement à droite)
+  }
 
 
+
+  u8g2.clearBuffer();
 }
 
 
@@ -112,21 +178,26 @@ void setup()
 void loop()
 {
 
-  //lecture si le robot a fini de se déplacer
-  Wire.requestFrom(I2C_SLAVE_DEPLACEMENT_ADDRESS,1);
-  com=Wire.read();
-  Serial.println(com);
+  drawLogo();
+  u8g2.sendBuffer();
+  delay(200);
 
-  if (com==0){ //si il a fini...
-    if(k==0)readRegisterAndSendValue();//si on est au tout début--> position initiale
-    envoye=1;
-    k++;
-    readRegisterAndSendValue();//envoi prochaine position
-    com=1; //Pour ne pas retourner dans cette condition si la loop revient trop rapidement
-  }
+  if (verif==true){
+    //lecture si le robot a fini de se déplacer
+    Wire.requestFrom(I2C_SLAVE_DEPLACEMENT_ADDRESS,1);
+    com=Wire.read();
+    Serial.println(com);
+
+    if (com==0){ //si il a fini...
+      if(k==0)readRegisterAndSendValue();//si on est au tout début--> position initiale
+      envoye=1;
+      k++;
+      readRegisterAndSendValue();//envoi prochaine position
+      com=1; //Pour ne pas retourner dans cette condition si la loop revient trop rapidement
+    }
 
     delay(1000);
-//  }
+  }
 
 
 }
@@ -146,7 +217,7 @@ void readRegisterAndSendValue() {
 
 
 
-    deplakment[k][3]*=100; // Pour gagner en précision --> /100 dans le programme déplacement
+    deplakment[k][3]*=1000; // Pour gagner en précision --> /100 dans le programme déplacement
 
     intdeplakment[k][1]=deplakment[k][1];
     intdeplakment[k][2]=deplakment[k][2];
@@ -156,15 +227,15 @@ void readRegisterAndSendValue() {
     //Chargement des octets à partir du tableau de déplacement pour une transmission du composant maître vers un composant esclave
     // Rq : la trame 0 est une trame rassemblant les bits restants pour x y et turn
 
-    Trame[0]=((intdeplakment[k][3]&=(1<<8))>>1);
-    Trame[0]|=((intdeplakment[k][1]&=(0x700))>>4);
-    Trame[0]|=((intdeplakment[k][2]&=(0xF00))>>8);
-    Trame[1]=deplakment[k][1];
-    Trame[2]=deplakment[k][2];
-    Trame[3]=deplakment[k][3];
+    Trame[0]=intdeplakment[k][1] >> 8;
+    Trame[1]=intdeplakment[k][1] & 255;
+    Trame[2]=intdeplakment[k][2] >> 8;
+    Trame[3]=intdeplakment[k][2] & 255;
+    Trame[4]=intdeplakment[k][3] >> 8;
+    Trame[5]=intdeplakment[k][3] & 255;
 
     Wire.beginTransmission(I2C_SLAVE_DEPLACEMENT_ADDRESS);
-    for (int i=0; i<4; i++){
+    for (int i=0; i<=5; i++){
         Wire.write(Trame[i]);
 
         Serial.print("Trame");
