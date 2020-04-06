@@ -19,6 +19,15 @@
 #define I2C_SLAVE_DETECTION_ADDRESS  1
 #define I2C_SLAVE_DEPLACEMENT_ADDRESS  2
 
-
+#define coteJaune 1
+#define coteBleu 0
 
 void readRegisterAndSendValue();
+
+void algoMenu1();
+
+void menu1(int blanc);
+
+void menu2();
+
+void lectureEncoder();

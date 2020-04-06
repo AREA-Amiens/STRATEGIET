@@ -43,10 +43,17 @@ void drawLogo(void)
 }
 
 
-
-bool detection=true,verif=false;
+bool detection=true, checkMenu1=false, quitMenu1=false, quitMenu2=false, demandeRecalage=false, cote=coteJaune, start=false;
+bool verif=false;
 
 int intdeplakment[18][3],k=0,x=0;
+int PinCLK = 1;
+int PinDT = 7;
+int PinSW = 0;
+int PinCLKLast = LOW,PinSWLast=LOW;
+int n=LOW,n1=LOW;
+int nbClic=0, ready=2;
+static long encoderPos = 0;    // Au 1er démarrage, il passera à 0
 
 float deplakment[18][3];
 
@@ -136,6 +143,9 @@ void setup()
   deplakment[17][2]=1000;
   deplakment[17][3]=0;
 
+  pinMode (PinCLK,INPUT_PULLUP);
+  pinMode (PinDT,INPUT_PULLUP);
+  pinMode (PinSW,INPUT_PULLUP);
   // Ouvre le port série et fixe le debit de communication à 9600 bauds
   Serial.begin(9600);
 
@@ -146,6 +156,7 @@ void setup()
   pinMode(13,OUTPUT);
   digitalWrite(13,HIGH);
 
+  //création Ecran de démarrage
   u8g2.clearBuffer();         // clear the internal memory
   u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
   u8g2.setBitmapMode(0);
@@ -157,7 +168,7 @@ void setup()
   delay(3000);
 
   while( x <=138){ //défiler logo
-    u8g2.clearBuffer();         // clear the internal memory
+    u8g2.clearBuffer();        // clear the internal memory
     u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
     u8g2.setBitmapMode(0);
     u8g2.drawXBM( x, 0, logoAREA_width, logoAREA_height, logoAREA);
@@ -165,9 +176,21 @@ void setup()
     x+=10; // défiler plus vite ( penser à mettre <=128+10 pour être sur que le logo disparait totalement à droite)
   }
 
-
-
   u8g2.clearBuffer();
+
+  //Les Menus pour la Mise en place
+  while(verif!=true){
+    //Utilisation Menu 1 pour configurer
+    algoMenu1();
+
+    //Utilisation Menu 2 pour confirmer si tout est ok
+    menu2();
+    quitMenu1=false;
+    quitMenu2=false;
+  }
+
+
+
 }
 
 
@@ -175,14 +198,13 @@ void setup()
 // Le programme principal s’exécute par une boucle infinie appelée Loop ()
 // ---------------------------------------------------------------------------
 
-void loop()
-{
+void loop(){
 
   drawLogo();
   u8g2.sendBuffer();
   delay(200);
 
-  if (verif==true){
+  if (start==true){
     //lecture si le robot a fini de se déplacer
     Wire.requestFrom(I2C_SLAVE_DEPLACEMENT_ADDRESS,1);
     com=Wire.read();
@@ -215,8 +237,6 @@ void readRegisterAndSendValue() {
 
     // débute de la communication avec un esclave (ouvre le stockage données à envoyer avec write)
 
-
-
     deplakment[k][3]*=1000; // Pour gagner en précision --> /100 dans le programme déplacement
 
     intdeplakment[k][1]=deplakment[k][1];
@@ -247,4 +267,138 @@ void readRegisterAndSendValue() {
 
   Wire.endTransmission();
 
+}
+
+void algoMenu1(){ //Utilisation Menu 1
+  while(quitMenu1==false){
+    n1=digitalRead(PinSW);
+    //Serial.println(n1);
+    //Serial.println(PinSWLast);
+    if (PinSWLast==LOW && n1==LOW) {   // Reset la position si on appui sur le potentiomètre
+      nbClic++;
+      //Serial.print(nbClic);
+    }
+    delay(500);
+    switch (nbClic){
+      case 0:
+      lectureEncoder();
+      cote=encoderPos%2;
+      menu1(10);
+      break;
+
+      case 1:
+      lectureEncoder();
+      demandeRecalage=encoderPos%2;
+      menu1(20);
+      break;
+
+      case 2:
+      lectureEncoder();
+      checkMenu1=encoderPos%2;
+      menu1(40);
+      break;
+
+      case 3:
+      if (checkMenu1==false) nbClic=0; // Retourne en haut de la page
+      else if (demandeRecalage==true) { // Réaliser un 1er recalage bordure
+        Serial.println("RECALAGE BORDURE");
+        nbClic=1; //Retourne à la ligne de demande
+      }
+      else if (checkMenu1==true){
+        nbClic=0; //Reset nombre de clics
+        quitMenu1=true;
+        u8g2.clearBuffer();
+      }
+      break;
+    }
+  }
+}
+
+void menu1(int blanc){
+  u8g2.clearBuffer();         // clear the internal memory
+  //  u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
+  u8g2.setCursor(118,64);
+  u8g2.print(encoderPos);
+  u8g2.setFontMode(1);  /* activate transparent font mode */
+  u8g2.setDrawColor(1); /* color 1 for the box */
+  u8g2.drawBox(0, blanc, 128, 10);
+  u8g2.setDrawColor(2);
+  u8g2.drawStr(0,9, "         Mise en place");
+  u8g2.drawStr(0,19, "Quel port ?");
+
+  if(cote==coteJaune)u8g2.drawStr(90,19,"Jaune");
+  else u8g2.drawStr(100,19,"Bleu");
+
+  if(demandeRecalage==true)u8g2.drawStr(90,29,"Oui");
+  else u8g2.drawStr(100,29,"Non");
+
+  if(checkMenu1==1)u8g2.drawStr(50,49,"LET'S GO");
+  else u8g2.drawStr(20,49,"Retour en haut");
+
+
+  u8g2.drawStr(0,29,"Verif auto ?");
+
+  u8g2.drawStr(0,39,"verification -> match");
+
+  u8g2.sendBuffer();
+}
+
+void menu2(){
+  while(quitMenu2==false){
+    n1=digitalRead(PinSW);
+    Serial.println(n1);
+    //Serial.println(PinSWLast);
+    if (PinSWLast==LOW && n1==LOW) {   // Reset la position si on appui sur le potentiomètre
+      nbClic++;
+      //Serial.print(nbClic);
+    }
+    delay(500);
+    lectureEncoder();
+    ready=abs(encoderPos%3);
+    Serial.println(ready);
+
+    u8g2.clearBuffer();         // clear the internal memory
+    //  u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
+    u8g2.setCursor(118,64);
+    u8g2.print(encoderPos);
+    u8g2.setFontMode(1);  /* activate transparent font mode */
+    u8g2.setDrawColor(1); /* color 1 for the box */
+    u8g2.drawBox(0, 35, 128, 10);
+    u8g2.setDrawColor(2);
+    u8g2.drawStr(0,9, "         Mise en place");
+    u8g2.drawStr(0,25, "     Pare au lancement ?");
+
+    if(ready==0) u8g2.drawStr(0,44,"    Retour accueil");
+    if(ready==1) u8g2.drawStr(0,44,"   My body is ready");
+    if(ready==2) u8g2.drawStr(0,44,"Attend je check encore");
+
+    u8g2.sendBuffer();
+
+    if (nbClic>3){
+      if(ready==1){ //prêt à envoyer
+        quitMenu2=true; //sortir du menu 2
+        verif=true; //tout est prêt --> sortie du menu de préparation
+      }
+      else if(ready==0)quitMenu2=true; //retour accueil
+      nbClic=0; //reset nombre de clics
+      u8g2.clearBuffer();         // clear the internal memory
+    }
+  }
+}
+
+void lectureEncoder(){
+  n = digitalRead(PinCLK);
+  if ((PinCLKLast == LOW) && (n == HIGH)) {
+    Serial.println("passage1");
+    if (digitalRead(PinDT) != HIGH) {
+      encoderPos++;
+      Serial.println("passage2");
+    }
+    else {
+      Serial.println("hello");
+      encoderPos--;
+    }
+  }
+  PinCLKLast = n;
+  delay(10);
 }
