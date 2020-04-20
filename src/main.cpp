@@ -1,15 +1,5 @@
 #include <STRATEGIET.h>
-#include <logo-area.h>
 
-
-#include <U8g2lib.h>
-
-#ifdef U8X8_HAVE_HW_SPI
-#include <SPI.h>
-#endif
-#ifdef U8X8_HAVE_HW_I2C
-#include <Wire.h>
-#endif
 
 U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 11, /* CS=*/ 12, /* reset=*/ 8);
 
@@ -52,7 +42,7 @@ int PinDT = 7;
 int PinSW = 0;
 int PinCLKLast = LOW,PinSWLast=LOW;
 int n=LOW,n1=LOW;
-int nbClic=0, ready=2;
+int nbClic=0, ready=2, timer;
 static long encoderPos = 0;    // Au 1er démarrage, il passera à 0
 
 float deplakment[18][3];
@@ -68,6 +58,7 @@ void setup()
 {
   pinMode(9, OUTPUT);
   digitalWrite(9, 0);	// default output in I2C mode for the SSD1306 test shield: set the i2c adr to 0
+  pinMode(5, INPUT_PULLUP); // pin de la tirette
 
   u8g2.begin();
 
@@ -156,15 +147,12 @@ void setup()
   pinMode(13,OUTPUT);
   digitalWrite(13,HIGH);
 
+  MsTimer2::set(1000,IntrerrupTimer);//tout les  seconde
+  MsTimer2::start();
+
   //création Ecran de démarrage
   u8g2.clearBuffer();         // clear the internal memory
-  u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
-  u8g2.setBitmapMode(0);
-  u8g2.drawStr(0,34,"TEAM");
-  u8g2.drawXBM( 33, 0, logoAREA_width, logoAREA_height, logoAREA);
-  u8g2.drawStr(95,34,"AREA");
-  //  u8g2.blink(); //clignoter le msg
-  u8g2.sendBuffer();          // transfer internal memory to the display
+  drawLogoArea();
   delay(3000);
 
   while( x <=138){ //défiler logo
@@ -188,9 +176,14 @@ void setup()
     quitMenu1=false;
     quitMenu2=false;
   }
-
-
-
+  do{
+    drawLogo();
+    start=digitalRead(5);
+    delay(10);
+    Serial.println(start);
+  }while(start==0);
+  timer=0;
+  u8g2.clearBuffer();
 }
 
 
@@ -200,11 +193,14 @@ void setup()
 
 void loop(){
 
-  drawLogo();
+  drawLogoArea();
+  u8g2.drawStr(0,44,"Score");
   u8g2.sendBuffer();
   delay(200);
 
-  if (start==true){
+  if(timer==100)Serial.print("FIN");
+
+  if (PinSW==1){
     //lecture si le robot a fini de se déplacer
     Wire.requestFrom(I2C_SLAVE_DEPLACEMENT_ADDRESS,1);
     com=Wire.read();
@@ -267,6 +263,16 @@ void readRegisterAndSendValue() {
 
   Wire.endTransmission();
 
+}
+
+void drawLogoArea(){
+  u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
+  u8g2.setBitmapMode(0);
+  u8g2.drawStr(0,34,"TEAM");
+  u8g2.drawXBM( 33, 0, logoAREA_width, logoAREA_height, logoAREA);
+  u8g2.drawStr(95,34,"AREA");
+  //  u8g2.blink(); //clignoter le msg
+  u8g2.sendBuffer();          // transfer internal memory to the display
 }
 
 void algoMenu1(){ //Utilisation Menu 1
@@ -346,7 +352,7 @@ void menu1(int blanc){
 void menu2(){
   while(quitMenu2==false){
     n1=digitalRead(PinSW);
-    Serial.println(n1);
+    //Serial.println(n1);
     //Serial.println(PinSWLast);
     if (PinSWLast==LOW && n1==LOW) {   // Reset la position si on appui sur le potentiomètre
       nbClic++;
@@ -355,7 +361,7 @@ void menu2(){
     delay(500);
     lectureEncoder();
     ready=abs(encoderPos%3);
-    Serial.println(ready);
+    //Serial.println(ready);
 
     u8g2.clearBuffer();         // clear the internal memory
     //  u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
@@ -386,6 +392,7 @@ void menu2(){
   }
 }
 
+
 void lectureEncoder(){
   n = digitalRead(PinCLK);
   if ((PinCLKLast == LOW) && (n == HIGH)) {
@@ -401,4 +408,8 @@ void lectureEncoder(){
   }
   PinCLKLast = n;
   delay(10);
+}
+
+void IntrerrupTimer(){
+  timer++;
 }

@@ -1,7 +1,16 @@
-// je charge la bibliothèque qui nous permet de communiquer
-// avec les composants utilisant le protocole I2C
-#include <Wire.h>
+#include <Wire.h>      //liaison I2C pour les cartes
+#include <MsTimer2.h>  // Timer
+#include <logo-area.h>
 
+
+#include <U8g2lib.h>  //gestion de l'ecran lcd grafique
+
+#ifdef U8X8_HAVE_HW_SPI
+#include <SPI.h>      //liaison SPI pour ecran
+#endif
+#ifdef U8X8_HAVE_HW_I2C
+#include <Wire.h>
+#endif
 
 
 #define RESET_G   15
@@ -24,6 +33,8 @@
 
 void readRegisterAndSendValue();
 
+void drawLogoArea();
+
 void algoMenu1();
 
 void menu1(int blanc);
@@ -31,3 +42,5 @@ void menu1(int blanc);
 void menu2();
 
 void lectureEncoder();
+
+void IntrerrupTimer();
